@@ -153,3 +153,7 @@ dmypy.json
 cython_debug/
 
 .DS_Store
+importlog.txt
+.vscode/launch.json
+config.bkp.json
+taxon_to_import copy.csv

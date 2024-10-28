@@ -1,6 +1,7 @@
 import os
 import csv
 import logging
+import json
 
 from typing import TypedDict, Literal, Optional, Dict, List, Callable
 
@@ -24,15 +25,14 @@ DEF_ITEMS: Dict[RANK_NAME, Optional[TaxonTreeDefItem_Record]] = {
     "Species": None
 }
 
-
 def main():
-    logging.basicConfig(filename=LOG_FILE_NAME, format='%(asctime)s %(message)s',
-                        datefmt='%Y-%m-%d %H:%M:%S', level=logging.INFO)
+    logging.basicConfig(filename=LOG_FILE_NAME, format='%(asctime)s %(message)s', datefmt='%Y-%m-%d %H:%M:%S', level=logging.INFO)
 
-    s = Session(domain="https://sp7demofish.specifycloud.org")
-    collection_id = s.get_collection_id("KUFishvoucher")
-    s.login(username="sp7demofish", password="sp7demofish",
-            collection_id=collection_id)
+    with open("config.json", "r") as file:
+        config = json.load(file)
+    s = Session(domain=config['domain'])
+    collection_id = s.get_collection_id(config['collection'])
+    s.login(username=config['username'], password=config['password'], collection_id=collection_id)
 
     discipline = s.fetch_resource('discipline', s.get_domain_id('Discipline'))
 
@@ -40,7 +40,7 @@ def main():
 
     rows = deserialize_csv("taxon_to_import.csv")
 
-    taxon_ids = [proccess_row(s, row) for row in rows]
+    taxon_ids = [process_row(s, row) for row in rows]
 
     print(f"Creating 'Imported Species (Api Demo)' recordset with results")
     recordset_data = {
@@ -122,7 +122,7 @@ def tree_info_fetched(func: Callable):
 
 
 @tree_info_fetched
-def proccess_row(session: Session, row: Row) -> int:
+def process_row(session: Session, row: Row) -> int:
     """Processes a single row in the CSV, creating/updating any Taxon records
     when necessary and finally returning the id of the lowest rank (Species) 
     which were fetched/updated/created 
@@ -165,8 +165,7 @@ def get_accepted(session: Session, row: Row) -> Optional[str]:
     if accepted_genus is None:
         # if the accepted species does not exist, upload it as a child of a
         # node with name "Uploaded" at the Family rank
-        parent = get_taxon(session, 'Uploaded',
-                           DEF_ITEMS["Family"]["id"], 'Uploaded')
+        parent = get_taxon(session, row['Family'], DEF_ITEMS["Family"]["id"], row['Order'])
         accepted_genus = create_accepted_taxon(
             session, DEF_ITEMS['Genus'], row["AcceptedGenus"], parent)
 
